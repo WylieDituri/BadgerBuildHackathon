@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { collection, doc, onSnapshot, query } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useEffect, useState, useRef } from "react";
+import { storage } from "@/lib/firebase";
 
-const APP_ID = process.env.NEXT_PUBLIC_APP_ID ?? "demo-app";
+const BACKEND_URL = storage.getBackendUrl();
+const WS_URL = BACKEND_URL.replace("http://", "ws://").replace("https://", "wss://");
 
 export type CarDoc = {
   id: string;
@@ -18,22 +18,95 @@ export type CarDoc = {
 
 export function MapDisplay() {
   const [cars, setCars] = useState<CarDoc[]>([]);
+  const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Create collection path with 5 segments: collection/doc/collection/doc/collection
-    const carsCol = collection(db, "artifacts", APP_ID, "data", "public", "cars");
-    const q = query(carsCol);
+    const connectWebSocket = () => {
+      try {
+        const ws = new WebSocket(`${WS_URL}/api/v1/ws`);
+        wsRef.current = ws;
 
-    const unsub = onSnapshot(q, (snap) => {
-      const nextCars: CarDoc[] = [];
-      snap.forEach((docSnap) => {
-        const data = docSnap.data() as Omit<CarDoc, "id">;
-        nextCars.push({ id: docSnap.id, ...data });
-      });
-      setCars(nextCars);
-    });
+        ws.onopen = () => {
+          console.log("WebSocket connected");
+          setConnectionStatus("connected");
+          // Send ping every 30 seconds to keep connection alive
+          const pingInterval = setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send("ping");
+            }
+          }, 30000);
+          
+          // Store interval ID for cleanup
+          (ws as any).pingInterval = pingInterval;
+        };
 
-    return () => unsub();
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === "initial_state" || data.type === "cars_update") {
+              // Convert backend format to frontend format
+              const nextCars: CarDoc[] = Object.entries(data.cars || {}).map(([id, car]: [string, any]) => ({
+                id,
+                start: car.start || "",
+                end: car.end || "",
+                x: car.path?.[0]?.x || car.x || 0,
+                y: car.path?.[0]?.y || car.y || 0,
+                path: car.path || [],
+                last_updated: car.updated_at,
+              }));
+              setCars(nextCars);
+            }
+          } catch (error) {
+            console.error("Failed to parse WebSocket message:", error);
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error("WebSocket error:", error);
+          setConnectionStatus("disconnected");
+        };
+
+        ws.onclose = () => {
+          console.log("WebSocket disconnected");
+          setConnectionStatus("disconnected");
+          
+          // Clear ping interval
+          if ((ws as any).pingInterval) {
+            clearInterval((ws as any).pingInterval);
+          }
+          
+          // Reconnect after 2 seconds
+          reconnectTimeoutRef.current = setTimeout(() => {
+            connectWebSocket();
+          }, 2000);
+        };
+      } catch (error) {
+        console.error("Failed to connect WebSocket:", error);
+        setConnectionStatus("disconnected");
+        // Retry connection
+        reconnectTimeoutRef.current = setTimeout(() => {
+          connectWebSocket();
+        }, 2000);
+      }
+    };
+
+    connectWebSocket();
+
+    return () => {
+      // Cleanup
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (wsRef.current) {
+        if ((wsRef.current as any).pingInterval) {
+          clearInterval((wsRef.current as any).pingInterval);
+        }
+        wsRef.current.close();
+      }
+    };
   }, []);
 
   return (
@@ -42,9 +115,20 @@ export function MapDisplay() {
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-300">
           Map View
         </h2>
-        <span className="text-xs text-slate-500">
-          Cars: {cars.length}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-slate-500">
+            Cars: {cars.length}
+          </span>
+          <span className={`text-xs ${
+            connectionStatus === "connected" ? "text-emerald-400" :
+            connectionStatus === "connecting" ? "text-yellow-400" :
+            "text-red-400"
+          }`}>
+            {connectionStatus === "connected" ? "● Live" :
+             connectionStatus === "connecting" ? "○ Connecting..." :
+             "○ Disconnected"}
+          </span>
+        </div>
       </div>
       <div className="relative h-[480px] w-full overflow-hidden rounded-md bg-gradient-to-br from-slate-900 to-slate-800">
         {/* Simple grid background */}

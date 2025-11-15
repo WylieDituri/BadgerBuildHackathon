@@ -1,10 +1,11 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from typing import List
+from typing import List, Set
+import json
 
 router = APIRouter()
 
 # Active WebSocket connections
-active_connections: List[WebSocket] = []
+active_connections: Set[WebSocket] = set()
 
 
 @router.websocket("/ws")
@@ -12,30 +13,55 @@ async def websocket_endpoint(websocket: WebSocket):
     """
     WebSocket endpoint for real-time updates.
     
-    Clients can connect to receive live updates about car movements,
-    planning results, or other system events.
+    Clients connect to receive live updates about car movements.
+    Perfect for handling many concurrent users!
     """
     await websocket.accept()
-    active_connections.append(websocket)
+    active_connections.add(websocket)
     
     try:
+        # Send initial state
+        from app.services.memory_store import memory_store
+        cars = memory_store.get_all_cars()
+        await websocket.send_json({
+            "type": "initial_state",
+            "cars": cars,
+            "count": len(cars)
+        })
+        
+        # Keep connection alive and listen for pings
         while True:
-            # Wait for messages from client
             data = await websocket.receive_text()
-            
-            # Echo back for now (implement custom logic as needed)
-            await websocket.send_text(f"Echo: {data}")
+            # Handle ping/pong for keepalive
+            if data == "ping":
+                await websocket.send_text("pong")
             
     except WebSocketDisconnect:
-        active_connections.remove(websocket)
+        active_connections.discard(websocket)
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+        active_connections.discard(websocket)
 
 
-async def broadcast_message(message: str):
-    """Broadcast a message to all connected WebSocket clients."""
+async def broadcast_cars_update():
+    """Broadcast car updates to all connected WebSocket clients."""
+    from app.services.memory_store import memory_store
+    cars = memory_store.get_all_cars()
+    
+    message = json.dumps({
+        "type": "cars_update",
+        "cars": cars,
+        "count": len(cars)
+    })
+    
+    # Broadcast to all connections
+    disconnected = set()
     for connection in active_connections:
         try:
             await connection.send_text(message)
-        except:
-            # Remove dead connections
-            if connection in active_connections:
-                active_connections.remove(connection)
+        except Exception:
+            disconnected.add(connection)
+    
+    # Clean up dead connections
+    for conn in disconnected:
+        active_connections.discard(conn)

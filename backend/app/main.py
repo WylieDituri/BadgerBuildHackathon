@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1 import endpoints, websockets
-from app.services.firebase_admin import initialize_firebase
 from app.core.config import settings
 
 # Initialize FastAPI app
@@ -14,7 +13,7 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url, "http://localhost:3000"],
+    allow_origins=["*"],  # Allow all origins for hackathon demo
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -29,8 +28,9 @@ app.include_router(websockets.router, prefix="/api/v1", tags=["websockets"])
 async def startup_event():
     """Initialize services on startup."""
     print("🚗 Initializing Centralized Car Intelligence Backend...")
-    initialize_firebase()
+    print("📦 Using in-memory storage (no Firebase needed!)")
     print(f"✅ Backend ready on port {settings.backend_port}")
+    print(f"🔌 WebSocket endpoint: ws://localhost:{settings.backend_port}/api/v1/ws")
 
 
 @app.get("/")
