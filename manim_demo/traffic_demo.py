@@ -87,20 +87,50 @@ class TrafficDemo(Scene):
         self.wait(2)
     
     def create_road_network(self):
-        """Create a simple intersection grid."""
+        """Create a simple intersection grid with realistic lane markings."""
         roads = VGroup()
         
         # Horizontal roads
         for y in [-1, 0, 1]:
+            # Road base
             road = Line(LEFT * 2, RIGHT * 2, color=GRAY, stroke_width=8)
             road.shift(UP * y)
             roads.add(road)
+            
+            # Solid yellow center line (divider between opposite directions)
+            center_line = Line(LEFT * 2, RIGHT * 2, color=YELLOW, stroke_width=2)
+            center_line.shift(UP * y)
+            roads.add(center_line)
+            
+            # Dashed white lines for lanes going same direction
+            white_line_top = DashedLine(LEFT * 2, RIGHT * 2, color=WHITE, stroke_width=1.5, dash_length=0.15)
+            white_line_top.shift(UP * (y + 0.08))
+            roads.add(white_line_top)
+            
+            white_line_bottom = DashedLine(LEFT * 2, RIGHT * 2, color=WHITE, stroke_width=1.5, dash_length=0.15)
+            white_line_bottom.shift(UP * (y - 0.08))
+            roads.add(white_line_bottom)
         
         # Vertical roads
         for x in [-1, 0, 1]:
+            # Road base
             road = Line(UP * 1.5, DOWN * 1.5, color=GRAY, stroke_width=8)
             road.shift(RIGHT * x)
             roads.add(road)
+            
+            # Solid yellow center line (divider between opposite directions)
+            center_line = Line(UP * 1.5, DOWN * 1.5, color=YELLOW, stroke_width=2)
+            center_line.shift(RIGHT * x)
+            roads.add(center_line)
+            
+            # Dashed white lines for lanes going same direction
+            white_line_left = DashedLine(UP * 1.5, DOWN * 1.5, color=WHITE, stroke_width=1.5, dash_length=0.15)
+            white_line_left.shift(RIGHT * (x - 0.08))
+            roads.add(white_line_left)
+            
+            white_line_right = DashedLine(UP * 1.5, DOWN * 1.5, color=WHITE, stroke_width=1.5, dash_length=0.15)
+            white_line_right.shift(RIGHT * (x + 0.08))
+            roads.add(white_line_right)
         
         # Intersection markers
         intersections = []
@@ -294,21 +324,50 @@ class DetailedComparison(Scene):
         self.show_stats()
     
     def create_detailed_roads(self):
-        """Create a more detailed road network."""
+        """Create a more detailed road network with realistic lane markings."""
         roads = VGroup()
         
-        # Main roads (thicker)
-        h_road1 = Line(LEFT * 2.5, RIGHT * 2.5, color=GRAY, stroke_width=10)
-        h_road1.shift(UP * 1)
-        h_road2 = Line(LEFT * 2.5, RIGHT * 2.5, color=GRAY, stroke_width=10)
-        h_road2.shift(DOWN * 1)
+        # Horizontal roads with lane markings
+        for y_pos in [1, -1]:
+            # Road base
+            h_road = Line(LEFT * 2.5, RIGHT * 2.5, color=GRAY, stroke_width=10)
+            h_road.shift(UP * y_pos)
+            roads.add(h_road)
+            
+            # Solid yellow center line
+            center_line = Line(LEFT * 2.5, RIGHT * 2.5, color=YELLOW, stroke_width=2)
+            center_line.shift(UP * y_pos)
+            roads.add(center_line)
+            
+            # Dashed white lines for lanes
+            white_top = DashedLine(LEFT * 2.5, RIGHT * 2.5, color=WHITE, stroke_width=1.5, dash_length=0.15)
+            white_top.shift(UP * (y_pos + 0.1))
+            roads.add(white_top)
+            
+            white_bottom = DashedLine(LEFT * 2.5, RIGHT * 2.5, color=WHITE, stroke_width=1.5, dash_length=0.15)
+            white_bottom.shift(UP * (y_pos - 0.1))
+            roads.add(white_bottom)
         
-        v_road1 = Line(UP * 2, DOWN * 2, color=GRAY, stroke_width=10)
-        v_road1.shift(LEFT * 1)
-        v_road2 = Line(UP * 2, DOWN * 2, color=GRAY, stroke_width=10)
-        v_road2.shift(RIGHT * 1)
-        
-        roads.add(h_road1, h_road2, v_road1, v_road2)
+        # Vertical roads with lane markings
+        for x_pos in [-1, 1]:
+            # Road base
+            v_road = Line(UP * 2, DOWN * 2, color=GRAY, stroke_width=10)
+            v_road.shift(RIGHT * x_pos)
+            roads.add(v_road)
+            
+            # Solid yellow center line
+            center_line = Line(UP * 2, DOWN * 2, color=YELLOW, stroke_width=2)
+            center_line.shift(RIGHT * x_pos)
+            roads.add(center_line)
+            
+            # Dashed white lines for lanes
+            white_left = DashedLine(UP * 2, DOWN * 2, color=WHITE, stroke_width=1.5, dash_length=0.15)
+            white_left.shift(RIGHT * (x_pos - 0.1))
+            roads.add(white_left)
+            
+            white_right = DashedLine(UP * 2, DOWN * 2, color=WHITE, stroke_width=1.5, dash_length=0.15)
+            white_right.shift(RIGHT * (x_pos + 0.1))
+            roads.add(white_right)
         
         # Center intersection highlight
         center = Square(side_length=0.4, color=YELLOW, fill_opacity=0.3)
@@ -419,9 +478,16 @@ class QuickDemo(Scene):
         self.wait(1)
         self.play(FadeOut(title))
         
-        # Simple road
+        # Simple road with lane markings
         road = Line(LEFT * 3, RIGHT * 3, color=GRAY, stroke_width=10)
-        self.play(Create(road))
+        center_line = Line(LEFT * 3, RIGHT * 3, color=YELLOW, stroke_width=2)
+        white_line_top = DashedLine(LEFT * 3, RIGHT * 3, color=WHITE, stroke_width=1.5, dash_length=0.15)
+        white_line_top.shift(UP * 0.1)
+        white_line_bottom = DashedLine(LEFT * 3, RIGHT * 3, color=WHITE, stroke_width=1.5, dash_length=0.15)
+        white_line_bottom.shift(DOWN * 0.1)
+        
+        road_group = VGroup(road, center_line, white_line_top, white_line_bottom)
+        self.play(Create(road_group))
         
         # Show cars
         car1 = Car(color=RED, label="1")
