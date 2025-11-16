@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1 import endpoints, websockets
-from app.api.v2 import intelligence
+from app.api.v2 import intelligence, race
 from app.core.config import settings
 
 # Initialize FastAPI app
@@ -27,6 +27,7 @@ app.include_router(websockets.router, prefix="/api/v1", tags=["v1-websockets"])
 
 # V2 API (Production/Intelligence)
 app.include_router(intelligence.router, prefix="/api/v2/intelligence", tags=["v2-intelligence"])
+app.include_router(race.router, prefix="/api/v2/race", tags=["v2-race"])
 
 
 @app.on_event("startup")

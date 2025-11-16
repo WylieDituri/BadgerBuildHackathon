@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏁 Race Admin Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f1419 0%, #1a2332 100%);
+            color: #e5e7eb;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2rem;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .card h2 {
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+            color: #10b981;
+        }
+
+        #map-canvas {
+            width: 100%;
+            height: 600px;
+            background: #1a472a;
+            border-radius: 8px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .controls-grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+            color: #9ca3af;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            color: #e5e7eb;
+            font-size: 14px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-top: 8px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button.danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .stat-box {
+            text-align: center;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #10b981;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            margin-top: 4px;
+        }
+
+        .leaderboard {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .leaderboard-row {
+            padding: 8px 12px;
+            display: grid;
+            grid-template-columns: 40px 1fr 80px 80px;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .leaderboard-row:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .rank {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #10b981;
+        }
+
+        .rank-1 { color: #fbbf24; }
+        .rank-2 { color: #9ca3af; }
+        .rank-3 { color: #cd7f32; }
+
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-waiting { background: #6b7280; }
+        .status-active { background: #10b981; }
+        .status-registered { background: #3b82f6; }
+        .status-racing { background: #f59e0b; }
+        .status-finished { background: #10b981; }
+        .status-crashed { background: #ef4444; }
+
+        #race-status {
+            font-size: 1.1rem;
+            padding: 10px;
+            background: rgba(107, 114, 128, 0.2);
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .player-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏁 Race Control Center</h1>
+
+        <div id="race-status">No active race</div>
+
+        <div class="main-grid">
+            <!-- Live Map -->
+            <div class="card">
+                <h2>📍 Live Race Map</h2>
+                <canvas id="map-canvas"></canvas>
+            </div>
+
+            <!-- Controls & Stats -->
+            <div class="controls-grid">
+                <!-- Create Race -->
+                <div class="card">
+                    <h2>Create Race</h2>
+                    <div class="form-group">
+                        <label>Race Name</label>
+                        <input type="text" id="race-name" value="Campus Sprint">
+                    </div>
+                    <div class="form-group">
+                        <label>Destination</label>
+                        <select id="destination">
+                            <option value="nw">North West</option>
+                            <option value="ne">North East</option>
+                            <option value="center">Center</option>
+                            <option value="sw">South West</option>
+                            <option value="se">South East</option>
+                        </select>
+                    </div>
+                    <button id="create-btn">Create Race</button>
+                </div>
+
+                <!-- Race Controls -->
+                <div class="card">
+                    <h2>Controls</h2>
+                    <button id="start-btn" class="hidden">Start Race 🚦</button>
+                    <button id="end-btn" class="hidden danger">End Race</button>
+                    <div id="race-info" class="hidden" style="margin-top: 12px; font-size: 0.85rem; color: #9ca3af;">
+                        Race ID: <span id="current-race-id">-</span>
+                    </div>
+                </div>
+
+                <!-- Live Stats -->
+                <div class="card">
+                    <h2>Live Stats</h2>
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <div class="stat-value" id="stat-total">0</div>
+                            <div class="stat-label">Total</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value" id="stat-racing">0</div>
+                            <div class="stat-label">Racing</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value" id="stat-finished">0</div>
+                            <div class="stat-label">Finished</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value" id="stat-crashed">0</div>
+                            <div class="stat-label">Crashed</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Leaderboard -->
+        <div class="card">
+            <h2>🏆 Leaderboard</h2>
+            <div class="leaderboard" id="leaderboard-body">
+                <div style="padding: 30px; text-align: center; color: #6b7280;">
+                    No players yet
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api/v2/race';
+        const INTEL_API = 'http://localhost:8000/api/v2/intelligence';
+        let currentRaceId = null;
+        let updateInterval = null;
+
+        const canvas = document.getElementById('map-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+
+        const destinations = {
+            nw: { name: 'North West', x: -50, y: -50 },
+            ne: { name: 'North East', x: 50, y: -50 },
+            center: { name: 'Center', x: 0, y: 0 },
+            sw: { name: 'South West', x: -50, y: 50 },
+            se: { name: 'South East', x: 50, y: 50 }
+        };
+
+        let destinationPos = { x: 0, y: 0 };
+        let players = {};
+
+        // Road network
+        const ROAD_WIDTH = 24;
+        const roads = [
+            { x1: -100, y1: -50, x2: 100, y2: -50 },
+            { x1: -100, y1: 0, x2: 100, y2: 0 },
+            { x1: -100, y1: 50, x2: 100, y2: 50 },
+            { x1: -50, y1: -100, x2: -50, y2: 100 },
+            { x1: 0, y1: -100, x2: 0, y2: 100 },
+            { x1: 50, y1: -100, x2: 50, y2: 100 },
+        ];
+
+        function drawMap() {
+            // Clear
+            ctx.fillStyle = '#1a472a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const scale = Math.min(canvas.width, canvas.height) / 220;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+
+            // Draw roads
+            ctx.strokeStyle = '#4a5568';
+            ctx.fillStyle = '#2d3748';
+            ctx.lineWidth = 2;
+
+            for (const road of roads) {
+                const x1 = centerX + road.x1 * scale;
+                const y1 = centerY + road.y1 * scale;
+                const x2 = centerX + road.x2 * scale;
+                const y2 = centerY + road.y2 * scale;
+
+                const isHorizontal = road.y1 === road.y2;
+                
+                if (isHorizontal) {
+                    ctx.fillRect(x1, y1 - ROAD_WIDTH * scale / 2, x2 - x1, ROAD_WIDTH * scale);
+                } else {
+                    ctx.fillRect(x1 - ROAD_WIDTH * scale / 2, y1, ROAD_WIDTH * scale, y2 - y1);
+                }
+            }
+
+            // Draw destination
+            const destX = centerX + destinationPos.x * scale;
+            const destY = centerY + destinationPos.y * scale;
+            
+            ctx.fillStyle = '#10b981';
+            ctx.beginPath();
+            ctx.arc(destX, destY, 20 * scale, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 24px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('🏁', destX, destY + 8);
+
+            // Draw players
+            for (const [playerId, player] of Object.entries(players)) {
+                const px = centerX + player.x * scale;
+                const py = centerY + player.y * scale;
+
+                // Car
+                ctx.save();
+                ctx.translate(px, py);
+                ctx.rotate(player.heading * Math.PI / 180);
+                
+                ctx.fillStyle = player.color || '#3b82f6';
+                ctx.fillRect(-8 * scale, -12 * scale, 16 * scale, 24 * scale);
+                
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(-8 * scale, -12 * scale, 16 * scale, 24 * scale);
+                
+                ctx.restore();
+
+                // Name label
+                ctx.fillStyle = 'white';
+                ctx.font = '12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(player.name, px, py - 20 * scale);
+            }
+        }
+
+        // Create Race
+        document.getElementById('create-btn').addEventListener('click', async () => {
+            const raceName = document.getElementById('race-name').value;
+            const destKey = document.getElementById('destination').value;
+            const dest = destinations[destKey];
+
+            const raceId = `race_${Date.now()}`;
+            destinationPos = { x: dest.x, y: dest.y };
+
+            try {
+                // Convert to GPS
+                const lat = dest.y / 1000 + 43.073;
+                const lon = dest.x / 1000 - 89.401;
+
+                const response = await fetch(`${API_BASE}/admin/race/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        race_id: raceId,
+                        name: raceName,
+                        destination_name: dest.name,
+                        destination_lat: lat,
+                        destination_lon: lon,
+                        destination_radius: 20
+                    })
+                });
+
+                if (response.ok) {
+                    currentRaceId = raceId;
+                    document.getElementById('current-race-id').textContent = raceId;
+                    document.getElementById('race-status').textContent = `Race Created: ${raceName} → Destination: ${dest.name}`;
+                    document.getElementById('start-btn').classList.remove('hidden');
+                    document.getElementById('race-info').classList.remove('hidden');
+                    document.getElementById('create-btn').disabled = true;
+                    
+                    startLiveUpdates();
+                    drawMap();
+                }
+            } catch (error) {
+                alert('Error creating race: ' + error.message);
+            }
+        });
+
+        // Start Race
+        document.getElementById('start-btn').addEventListener('click', async () => {
+            if (!currentRaceId) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/race/${currentRaceId}/start`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    document.getElementById('race-status').textContent = '🏁 RACE IN PROGRESS';
+                    document.getElementById('race-status').style.background = 'rgba(16, 185, 129, 0.2)';
+                    document.getElementById('start-btn').classList.add('hidden');
+                    document.getElementById('end-btn').classList.remove('hidden');
+                }
+            } catch (error) {
+                alert('Error starting race: ' + error.message);
+            }
+        });
+
+        // End Race
+        document.getElementById('end-btn').addEventListener('click', async () => {
+            if (!currentRaceId) return;
+            if (!confirm('End the race?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/race/${currentRaceId}/end`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    document.getElementById('race-status').textContent = '✅ RACE FINISHED';
+                    document.getElementById('race-status').style.background = 'rgba(59, 130, 246, 0.2)';
+                    document.getElementById('end-btn').classList.add('hidden');
+                    
+                    if (updateInterval) {
+                        clearInterval(updateInterval);
+                    }
+                }
+            } catch (error) {
+                alert('Error ending race: ' + error.message);
+            }
+        });
+
+        // Update race status
+        async function updateRaceStatus() {
+            if (!currentRaceId) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/race/${currentRaceId}/status`);
+                if (!response.ok) return;
+
+                const data = await response.json();
+
+                // Update stats
+                document.getElementById('stat-total').textContent = data.players.total;
+                document.getElementById('stat-racing').textContent = data.players.racing;
+                document.getElementById('stat-finished').textContent = data.players.finished;
+                document.getElementById('stat-crashed').textContent = data.players.crashed;
+
+                // Update leaderboard
+                updateLeaderboard(data.leaderboard);
+
+                // Fetch player positions from intelligence API
+                await updatePlayerPositions();
+
+            } catch (error) {
+                console.error('Update error:', error);
+            }
+        }
+
+        async function updatePlayerPositions() {
+            try {
+                const response = await fetch(`${INTEL_API}/cars?active_only=true`);
+                if (!response.ok) return;
+
+                const cars = await response.json();
+                
+                // Update player positions
+                players = {};
+                for (const car of cars) {
+                    if (car.current_position) {
+                        const x = (car.current_position.lon + 89.401) * 1000;
+                        const y = (car.current_position.lat - 43.073) * 1000;
+                        
+                        players[car.car_id] = {
+                            name: car.owner_id || car.car_id,
+                            x: x,
+                            y: y,
+                            heading: car.current_position.heading || 0,
+                            color: '#3b82f6'
+                        };
+                    }
+                }
+
+                drawMap();
+
+            } catch (error) {
+                console.error('Position update error:', error);
+            }
+        }
+
+        function updateLeaderboard(leaderboard) {
+            const body = document.getElementById('leaderboard-body');
+            
+            if (leaderboard.length === 0) {
+                body.innerHTML = '<div style="padding: 30px; text-align: center; color: #6b7280;">No players yet</div>';
+                return;
+            }
+
+            body.innerHTML = leaderboard.map(player => {
+                const rankClass = player.rank ? `rank-${player.rank}` : '';
+                const rankDisplay = player.rank || '-';
+                const statusClass = `status-${player.status}`;
+                
+                let timeDisplay = '-';
+                if (player.time !== null && player.time !== undefined) {
+                    timeDisplay = `${player.time.toFixed(2)}s`;
+                }
+                
+                let distanceDisplay = '-';
+                if (player.distance_to_finish) {
+                    distanceDisplay = `${player.distance_to_finish.toFixed(0)}m`;
+                }
+
+                return `
+                    <div class="leaderboard-row">
+                        <div class="rank ${rankClass}">${rankDisplay}</div>
+                        <div>${player.username}</div>
+                        <div><span class="status-badge ${statusClass}">${player.status}</span></div>
+                        <div>${timeDisplay}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function startLiveUpdates() {
+            updateRaceStatus();
+            updateInterval = setInterval(updateRaceStatus, 500); // 2Hz updates
+        }
+
+        // Check for active race on load
+        (async () => {
+            try {
+                const response = await fetch(`${API_BASE}/admin/race/active`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.active_race) {
+                        currentRaceId = data.active_race.race_id;
+                        document.getElementById('current-race-id').textContent = currentRaceId;
+                        document.getElementById('race-info').classList.remove('hidden');
+                        document.getElementById('create-btn').disabled = true;
+                        
+                        if (data.active_race.status === 'active') {
+                            document.getElementById('race-status').textContent = '🏁 RACE IN PROGRESS';
+                            document.getElementById('race-status').style.background = 'rgba(16, 185, 129, 0.2)';
+                            document.getElementById('end-btn').classList.remove('hidden');
+                            startLiveUpdates();
+                        } else {
+                            document.getElementById('start-btn').classList.remove('hidden');
+                            startLiveUpdates();
+                        }
+                    } else {
+                        drawMap(); // Draw empty map
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to check for active race:', error);
+                drawMap(); // Draw empty map
+            }
+        })();
+
+        // Redraw on resize
+        window.addEventListener('resize', () => {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            drawMap();
+        });
+    </script>
+</body>
+</html>
+

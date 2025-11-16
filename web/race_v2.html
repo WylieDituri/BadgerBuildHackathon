@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏁 Race Mode</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f1419 0%, #1a2332 100%);
+            color: #e5e7eb;
+            overflow: hidden;
+        }
+
+        #lobby {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            padding: 20px;
+        }
+
+        #racing-view {
+            display: none;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        .lobby-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: #9ca3af;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #e5e7eb;
+            font-size: 16px;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        #map-view {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #2d3748;
+        }
+
+        #hud {
+            padding: 20px;
+            background: rgba(15, 20, 25, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .hud-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+        }
+
+        .hud-item {
+            text-align: center;
+        }
+
+        .hud-label {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            margin-bottom: 4px;
+        }
+
+        .hud-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #10b981;
+        }
+
+        #game-canvas {
+            width: 100%;
+            height: 100%;
+            image-rendering: crisp-edges;
+        }
+
+        .status-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px 60px;
+            border-radius: 16px;
+            text-align: center;
+            z-index: 1000;
+            border: 3px solid;
+        }
+
+        .status-message h2 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+
+        .status-message.crashed {
+            border-color: #ef4444;
+        }
+
+        .status-message.crashed h2 {
+            color: #ef4444;
+        }
+
+        .status-message.finished {
+            border-color: #10b981;
+        }
+
+        .status-message.finished h2 {
+            color: #10b981;
+        }
+
+        .status-message.offroad {
+            border-color: #f59e0b;
+        }
+
+        .status-message.offroad h2 {
+            color: #f59e0b;
+        }
+
+        .stat-row {
+            margin: 10px 0;
+            font-size: 1.2rem;
+        }
+
+        .controls-hint {
+            margin-top: 20px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            text-align: center;
+            color: #9ca3af;
+        }
+    </style>
+</head>
+<body>
+    <!-- Lobby -->
+    <div id="lobby">
+        <div class="lobby-card">
+            <h1>🏁 Join Race</h1>
+            <div class="form-group">
+                <label>Your Name</label>
+                <input type="text" id="username" placeholder="Enter your name">
+            </div>
+            <div class="form-group">
+                <label>Car Color</label>
+                <select id="car-color">
+                    <option value="#3b82f6">Blue</option>
+                    <option value="#ef4444">Red</option>
+                    <option value="#10b981">Green</option>
+                    <option value="#f59e0b">Orange</option>
+                    <option value="#8b5cf6">Purple</option>
+                    <option value="#ec4899">Pink</option>
+                    <option value="#14b8a6">Teal</option>
+                </select>
+            </div>
+            <button id="join-btn">Join Race</button>
+            <div class="controls-hint">
+                Use Arrow Keys to drive<br>
+                🔼 Forward | 🔽 Reverse | ◀️ Left | ▶️ Right<br>
+                <strong>Stay on the road!</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- Racing View -->
+    <div id="racing-view">
+        <div id="map-view">
+            <canvas id="game-canvas"></canvas>
+        </div>
+        <div id="hud">
+            <div class="hud-grid">
+                <div class="hud-item">
+                    <div class="hud-label">Speed</div>
+                    <div class="hud-value" id="hud-speed">0 mph</div>
+                </div>
+                <div class="hud-item">
+                    <div class="hud-label">Time</div>
+                    <div class="hud-value" id="hud-time">0.0s</div>
+                </div>
+                <div class="hud-item">
+                    <div class="hud-label">Distance to Finish</div>
+                    <div class="hud-value" id="hud-distance">-</div>
+                </div>
+                <div class="hud-item">
+                    <div class="hud-label">Status</div>
+                    <div class="hud-value" id="hud-status">Waiting</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api/v2/race';
+        const INTEL_API = 'http://localhost:8000/api/v2/intelligence';
+        
+        let playerId = null;
+        let carId = null;
+        let raceId = null;
+        
+        // Smaller map coordinates (compact campus area)
+        let x = 0;  // Map coordinates (-100 to 100)
+        let y = 0;
+        let heading = 0;
+        let speed = 0;
+        let carColor = '#3b82f6';
+        
+        let startTime = null;
+        let gameLoopInterval = null;
+        let updateInterval = null;
+        let isOffroad = false;
+        let crashed = false;
+
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let destinationX = 0;
+        let destinationY = 0;
+
+        // Road network (simplified grid)
+        const ROAD_WIDTH = 24;
+        const roads = [
+            // Horizontal roads
+            { x1: -100, y1: -50, x2: 100, y2: -50 },
+            { x1: -100, y1: 0, x2: 100, y2: 0 },
+            { x1: -100, y1: 50, x2: 100, y2: 50 },
+            // Vertical roads
+            { x1: -50, y1: -100, x2: -50, y2: 100 },
+            { x1: 0, y1: -100, x2: 0, y2: 100 },
+            { x1: 50, y1: -100, x2: 50, y2: 100 },
+        ];
+
+        const startPositions = {
+            1: { x: -50, y: -80, heading: 90, name: 'North West' },
+            2: { x: 50, y: -80, heading: 90, name: 'North East' },
+            3: { x: -80, y: 0, heading: 0, name: 'West' },
+            4: { x: 80, y: 0, heading: 180, name: 'East' },
+            5: { x: -50, y: 80, heading: 270, name: 'South West' },
+            6: { x: 50, y: 80, heading: 270, name: 'South East' },
+        };
+
+        function isOnRoad(px, py) {
+            for (const road of roads) {
+                const isHorizontal = road.y1 === road.y2;
+                
+                if (isHorizontal) {
+                    if (Math.abs(py - road.y1) < ROAD_WIDTH / 2 &&
+                        px >= road.x1 && px <= road.x2) {
+                        return true;
+                    }
+                } else {
+                    if (Math.abs(px - road.x1) < ROAD_WIDTH / 2 &&
+                        py >= road.y1 && py <= road.y2) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Join race
+        document.getElementById('join-btn').addEventListener('click', async () => {
+            const username = document.getElementById('username').value.trim();
+            carColor = document.getElementById('car-color').value;
+
+            if (!username) {
+                alert('Please enter your name');
+                return;
+            }
+
+            playerId = `player_${username}_${Date.now()}`;
+            
+            // Assign random start position
+            const startKey = Math.floor(Math.random() * 6) + 1;
+            const startPos = startPositions[startKey];
+            x = startPos.x;
+            y = startPos.y;
+            heading = startPos.heading;
+
+            try {
+                // Get active race
+                const raceResponse = await fetch(`${API_BASE}/admin/race/active`);
+                const raceData = await raceResponse.json();
+
+                if (!raceData.active_race) {
+                    alert('No active race. Please wait for admin to create one.');
+                    return;
+                }
+
+                raceId = raceData.active_race.race_id;
+
+                // Register for race
+                const registerResponse = await fetch(`${API_BASE}/player/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        race_id: raceId,
+                        player_id: playerId,
+                        username: username,
+                        start_point_name: startPos.name,
+                        start_lat: y / 1000 + 43.073,  // Convert to fake GPS
+                        start_lon: x / 1000 - 89.401
+                    })
+                });
+
+                if (!registerResponse.ok) {
+                    alert('Failed to join race. It may be full or already started.');
+                    return;
+                }
+
+                const registerData = await registerResponse.json();
+                carId = registerData.car_id;
+
+                // Register car with intelligence system
+                await fetch(`${INTEL_API}/cars/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        car_id: carId,
+                        vehicle_type: 'sedan',
+                        owner_id: username,
+                        is_emergency: false
+                    })
+                });
+
+                // Get destination
+                const infoResponse = await fetch(`${API_BASE}/player/${playerId}/race`);
+                const raceInfo = await infoResponse.json();
+                
+                // Convert GPS to map coords
+                destinationX = (raceInfo.destination.lon + 89.401) * 1000;
+                destinationY = (raceInfo.destination.lat - 43.073) * 1000;
+
+                // Switch to racing view
+                document.getElementById('lobby').style.display = 'none';
+                document.getElementById('racing-view').style.display = 'flex';
+                
+                resizeCanvas();
+                startGame();
+
+            } catch (error) {
+                alert('Error joining race: ' + error.message);
+            }
+        });
+
+        function resizeCanvas() {
+            const container = document.getElementById('map-view');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        // Game controls
+        const keys = {};
+        window.addEventListener('keydown', e => keys[e.key] = true);
+        window.addEventListener('keyup', e => keys[e.key] = false);
+
+        function updateControls() {
+            if (crashed) return;
+
+            if (keys['ArrowUp']) {
+                speed = Math.min(speed + 0.5, 20);
+            } else if (keys['ArrowDown']) {
+                speed = Math.max(speed - 0.5, -5);
+            } else {
+                speed = speed * 0.95;  // Friction
+            }
+
+            if (Math.abs(speed) > 0.1) {
+                if (keys['ArrowLeft']) {
+                    heading = (heading - 3 + 360) % 360;
+                }
+                if (keys['ArrowRight']) {
+                    heading = (heading + 3) % 360;
+                }
+            }
+
+            // Update position
+            const rad = heading * Math.PI / 180;
+            x += speed * Math.sin(rad);
+            y += -speed * Math.cos(rad);
+
+            // Check if on road
+            if (!isOnRoad(x, y)) {
+                if (!isOffroad) {
+                    isOffroad = true;
+                    setTimeout(() => {
+                        if (isOffroad) {
+                            crashed = true;
+                            showCrashMessage({ event: 'offroad', time: (Date.now() - startTime) / 1000 });
+                            stopGame();
+                        }
+                    }, 1000);  // 1 second grace period
+                }
+            } else {
+                isOffroad = false;
+            }
+
+            // Bounds
+            x = Math.max(-100, Math.min(100, x));
+            y = Math.max(-100, Math.min(100, y));
+        }
+
+        async function sendUpdate() {
+            if (!playerId || !carId || crashed) return;
+
+            try {
+                const speedMps = Math.abs(speed) * 0.44704;
+                
+                // Convert map coords to GPS
+                const lat = y / 1000 + 43.073;
+                const lon = x / 1000 - 89.401;
+
+                // Update race position
+                const raceResponse = await fetch(`${API_BASE}/player/position`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        player_id: playerId,
+                        lat: lat,
+                        lon: lon,
+                        speed_mps: speedMps
+                    })
+                });
+
+                if (raceResponse.ok) {
+                    const result = await raceResponse.json();
+                    
+                    if (result.event === 'finished') {
+                        showFinishMessage(result);
+                        stopGame();
+                    } else if (result.event === 'crashed') {
+                        crashed = true;
+                        showCrashMessage(result);
+                        stopGame();
+                    }
+                }
+
+                // Update intelligence system
+                await fetch(`${INTEL_API}/cars/location`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        car_id: carId,
+                        lat: lat,
+                        lon: lon,
+                        heading: heading,
+                        speed_mps: speedMps
+                    })
+                });
+
+                // Update HUD
+                updateHUD();
+
+            } catch (error) {
+                console.error('Update error:', error);
+            }
+        }
+
+        async function updateHUD() {
+            try {
+                const response = await fetch(`${API_BASE}/player/${playerId}/stats`);
+                if (!response.ok) return;
+
+                const stats = await response.json();
+
+                document.getElementById('hud-speed').textContent = `${Math.round(Math.abs(speed) * 2)} mph`;
+                document.getElementById('hud-status').textContent = stats.status;
+
+                if (stats.current_time) {
+                    document.getElementById('hud-time').textContent = `${stats.current_time.toFixed(1)}s`;
+                }
+
+                const dist = Math.sqrt((destinationX - x) ** 2 + (destinationY - y) ** 2);
+                document.getElementById('hud-distance').textContent = `${Math.round(dist * 10)}m`;
+
+            } catch (error) {
+                console.error('HUD update error:', error);
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = '#1a472a';  // Grass
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const scale = Math.min(canvas.width, canvas.height) / 220;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const offsetX = -x * scale;
+            const offsetY = -y * scale;
+
+            // Draw roads
+            ctx.strokeStyle = '#4a5568';
+            ctx.fillStyle = '#2d3748';
+            ctx.lineWidth = 2;
+
+            for (const road of roads) {
+                const x1 = centerX + road.x1 * scale + offsetX;
+                const y1 = centerY + road.y1 * scale + offsetY;
+                const x2 = centerX + road.x2 * scale + offsetX;
+                const y2 = centerY + road.y2 * scale + offsetY;
+
+                const isHorizontal = road.y1 === road.y2;
+                
+                if (isHorizontal) {
+                    ctx.fillRect(x1, y1 - ROAD_WIDTH * scale / 2, x2 - x1, ROAD_WIDTH * scale);
+                    
+                    // Lane markers
+                    ctx.strokeStyle = '#fbbf24';
+                    ctx.setLineDash([10, 10]);
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                } else {
+                    ctx.fillRect(x1 - ROAD_WIDTH * scale / 2, y1, ROAD_WIDTH * scale, y2 - y1);
+                    
+                    // Lane markers
+                    ctx.strokeStyle = '#fbbf24';
+                    ctx.setLineDash([10, 10]);
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+
+            // Draw destination
+            const destScreenX = centerX + destinationX * scale + offsetX;
+            const destScreenY = centerY + destinationY * scale + offsetY;
+            
+            ctx.fillStyle = '#10b981';
+            ctx.beginPath();
+            ctx.arc(destScreenX, destScreenY, 15 * scale, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 20px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('🏁', destScreenX, destScreenY + 7);
+
+            // Draw player car
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate(heading * Math.PI / 180);
+            
+            // Car body
+            ctx.fillStyle = isOffroad ? '#ef4444' : carColor;
+            ctx.fillRect(-8 * scale, -14 * scale, 16 * scale, 28 * scale);
+            ctx.fillStyle = isOffroad ? '#fca5a5' : (carColor + '88');
+            ctx.fillRect(-6 * scale, -10 * scale, 12 * scale, 10 * scale);
+            
+            // Highlight
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2 * scale;
+            ctx.strokeRect(-8 * scale, -14 * scale, 16 * scale, 28 * scale);
+            
+            ctx.restore();
+
+            // Warning if offroad
+            if (isOffroad) {
+                ctx.fillStyle = '#ef4444';
+                ctx.font = 'bold 24px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('⚠️ OFF ROAD!', centerX, 50);
+            }
+        }
+
+        function gameLoop() {
+            updateControls();
+            draw();
+        }
+
+        function startGame() {
+            startTime = Date.now();
+            gameLoopInterval = setInterval(gameLoop, 1000 / 30);
+            updateInterval = setInterval(sendUpdate, 100);
+        }
+
+        function stopGame() {
+            if (gameLoopInterval) clearInterval(gameLoopInterval);
+            if (updateInterval) clearInterval(updateInterval);
+        }
+
+        function showFinishMessage(result) {
+            const msg = document.createElement('div');
+            msg.className = 'status-message finished';
+            msg.innerHTML = `
+                <h2>🏁 FINISHED!</h2>
+                <div class="stat-row">Time: <strong>${result.time.toFixed(2)}s</strong></div>
+                <div class="stat-row">Rank: <strong>#${result.rank}</strong></div>
+            `;
+            document.getElementById('map-view').appendChild(msg);
+        }
+
+        function showCrashMessage(result) {
+            const msg = document.createElement('div');
+            msg.className = 'status-message ' + (result.event === 'offroad' ? 'offroad' : 'crashed');
+            const title = result.event === 'offroad' ? '🌲 WENT OFF ROAD!' : '💥 CRASHED!';
+            msg.innerHTML = `
+                <h2>${title}</h2>
+                <div class="stat-row">Time: ${result.time.toFixed(2)}s</div>
+                <div class="stat-row">You're out of the race</div>
+            `;
+            document.getElementById('map-view').appendChild(msg);
+        }
+    </script>
+</body>
+</html>
+
