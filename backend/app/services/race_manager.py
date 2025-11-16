@@ -102,7 +102,7 @@ class Race:
     countdown_start: Optional[datetime] = None
     max_players: int = 20
     crash_detection_enabled: bool = True
-    collision_radius_meters: float = 3.0  # Distance considered a crash
+    collision_radius_meters: float = 8.0  # Distance considered a crash (matches frontend car size)
     
     def add_player(self, player: Player) -> bool:
         """Add a player to the race"""
