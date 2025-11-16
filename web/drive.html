@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚗 Drive Your Car</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #0f1419 0%, #1a2332 100%);
+            color: #e5e7eb;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 32px;
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #9ca3af;
+            margin-bottom: 32px;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .status.disconnected {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .status.disconnected .status-dot {
+            background: #ef4444;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #d1d5db;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #e5e7eb;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #10b981;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        button {
+            width: 100%;
+            padding: 14px 24px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(16, 185, 129, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .controls {
+            display: none;
+            margin-top: 24px;
+        }
+
+        .controls.active {
+            display: block;
+        }
+
+        .control-title {
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .joystick {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            max-width: 240px;
+            margin: 0 auto 24px;
+        }
+
+        .joystick-btn {
+            width: 100%;
+            aspect-ratio: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .joystick-btn:active {
+            background: rgba(16, 185, 129, 0.2);
+            transform: scale(0.95);
+        }
+
+        .joystick-btn:disabled {
+            opacity: 0.3;
+        }
+
+        .speed-display {
+            text-align: center;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+
+        .info {
+            margin-top: 24px;
+            padding: 16px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .keyboard-hint {
+            text-align: center;
+            margin-top: 16px;
+            color: #9ca3af;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>🚗 Drive Your Car</h1>
+            <p class="subtitle">Join the live traffic simulation</p>
+
+            <div id="status" class="status disconnected">
+                <div class="status-dot"></div>
+                <span id="status-text">Disconnected</span>
+            </div>
+
+            <div id="join-form">
+                <div class="form-group">
+                    <label for="username">Your Name</label>
+                    <input type="text" id="username" placeholder="Enter your name" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="start-location">Starting Location</label>
+                    <select id="start-location">
+                        <option value="north">North Edge</option>
+                        <option value="south">South Edge</option>
+                        <option value="east">East Edge</option>
+                        <option value="west">West Edge</option>
+                    </select>
+                </div>
+
+                <button id="join-btn">Join Traffic 🚦</button>
+            </div>
+
+            <div id="controls" class="controls">
+                <div class="control-title">Control Your Car</div>
+                
+                <div class="joystick">
+                    <div></div>
+                    <button class="joystick-btn" data-dir="up">⬆️</button>
+                    <div></div>
+                    <button class="joystick-btn" data-dir="left">⬅️</button>
+                    <button class="joystick-btn" data-dir="stop">⏹️</button>
+                    <button class="joystick-btn" data-dir="right">➡️</button>
+                    <div></div>
+                    <button class="joystick-btn" data-dir="down">⬇️</button>
+                    <div></div>
+                </div>
+
+                <div class="keyboard-hint">
+                    💡 Use arrow keys or WASD to drive
+                </div>
+
+                <div class="speed-display">
+                    <div>Speed: <span id="speed">0</span> mph</div>
+                    <div>Position: <span id="position">-</span></div>
+                </div>
+
+                <button id="leave-btn" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); margin-top: 16px;">
+                    Leave Traffic 🚪
+                </button>
+            </div>
+
+            <div class="info">
+                ℹ️ <strong>How to play:</strong> Use the controls or keyboard to drive your car. The AI will help prevent collisions, but drive carefully! Your car appears as a green square on the map.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api/v2/intelligence';
+        
+        let carId = null;
+        let currentLat = 43.0730;
+        let currentLon = -89.4012;
+        let heading = 0;
+        let speed = 0;
+        let updateInterval = null;
+
+        const statusEl = document.getElementById('status');
+        const statusText = document.getElementById('status-text');
+        const joinForm = document.getElementById('join-form');
+        const controlsEl = document.getElementById('controls');
+        const joinBtn = document.getElementById('join-btn');
+        const leaveBtn = document.getElementById('leave-btn');
+        const speedEl = document.getElementById('speed');
+        const positionEl = document.getElementById('position');
+
+        // Starting positions map
+        const startPositions = {
+            north: { lat: 43.0780, lon: -89.4012, heading: 180 },
+            south: { lat: 43.0680, lon: -89.4012, heading: 0 },
+            east: { lat: 43.0730, lon: -89.3962, heading: 270 },
+            west: { lat: 43.0730, lon: -89.4062, heading: 90 }
+        };
+
+        // Join traffic
+        joinBtn.addEventListener('click', async () => {
+            const username = document.getElementById('username').value.trim();
+            if (!username) {
+                alert('Please enter your name');
+                return;
+            }
+
+            const startLoc = document.getElementById('start-location').value;
+            const start = startPositions[startLoc];
+            
+            currentLat = start.lat;
+            currentLon = start.lon;
+            heading = start.heading;
+            speed = 0;
+
+            try {
+                // Register car with backend
+                const carIdGen = `user_${username}_${Date.now()}`;
+                const response = await fetch(`${API_BASE}/cars/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        car_id: carIdGen,
+                        vehicle_type: 'sedan',
+                        owner_id: username,
+                        is_emergency: false
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    carId = data.car_id;
+                    
+                    statusEl.classList.remove('disconnected');
+                    statusText.textContent = `Connected as ${username}`;
+                    
+                    joinForm.style.display = 'none';
+                    controlsEl.classList.add('active');
+                    
+                    // Start sending updates
+                    startUpdates();
+                } else {
+                    alert('Failed to join. Is the backend running?');
+                }
+            } catch (error) {
+                console.error('Join error:', error);
+                alert('Connection error. Make sure the backend is running on port 8000.');
+            }
+        });
+
+        // Leave traffic
+        leaveBtn.addEventListener('click', () => {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+            
+            carId = null;
+            speed = 0;
+            
+            statusEl.classList.add('disconnected');
+            statusText.textContent = 'Disconnected';
+            
+            joinForm.style.display = 'block';
+            controlsEl.classList.remove('active');
+        });
+
+        // Update car position on server
+        async function sendUpdate() {
+            if (!carId) return;
+
+            try {
+                // Convert speed from mph to meters/second
+                const speedMps = speed * 0.44704; // 1 mph = 0.44704 m/s
+                
+                await fetch(`${API_BASE}/cars/location`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        car_id: carId,
+                        lat: currentLat,
+                        lon: currentLon,
+                        speed_mps: speedMps,
+                        heading: heading
+                    })
+                });
+
+                // Update display
+                speedEl.textContent = Math.round(speed);
+                positionEl.textContent = `${currentLat.toFixed(5)}, ${currentLon.toFixed(5)}`;
+            } catch (error) {
+                console.error('Update error:', error);
+            }
+        }
+
+        function startUpdates() {
+            updateInterval = setInterval(sendUpdate, 200); // 5 updates per second
+        }
+
+        // Movement functions
+        function move(direction) {
+            const MOVE_SPEED = 0.0001; // Adjust movement speed
+            
+            switch(direction) {
+                case 'up':
+                    currentLat += MOVE_SPEED;
+                    heading = 0;
+                    speed = 30;
+                    break;
+                case 'down':
+                    currentLat -= MOVE_SPEED;
+                    heading = 180;
+                    speed = 30;
+                    break;
+                case 'left':
+                    currentLon -= MOVE_SPEED;
+                    heading = 270;
+                    speed = 30;
+                    break;
+                case 'right':
+                    currentLon += MOVE_SPEED;
+                    heading = 90;
+                    speed = 30;
+                    break;
+                case 'stop':
+                    speed = 0;
+                    break;
+            }
+            
+            sendUpdate();
+        }
+
+        // Joystick controls
+        document.querySelectorAll('.joystick-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                move(btn.dataset.dir);
+            });
+        });
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (!carId) return;
+            
+            switch(e.key) {
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    move('up');
+                    e.preventDefault();
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    move('down');
+                    e.preventDefault();
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    move('left');
+                    e.preventDefault();
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    move('right');
+                    e.preventDefault();
+                    break;
+                case ' ':
+                    move('stop');
+                    e.preventDefault();
+                    break;
+            }
+        });
+
+        // Auto-decelerate when not moving
+        setInterval(() => {
+            if (carId && speed > 0) {
+                speed = Math.max(0, speed - 2);
+                sendUpdate();
+            }
+        }, 500);
+    </script>
+</body>
+</html>
+
+
